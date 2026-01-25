@@ -1,6 +1,6 @@
+import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import express from "express";
 import morgan from "morgan";
 
 import { connectDb } from "./lib/db.js";
@@ -15,40 +15,45 @@ dotenv.config();
 
 const app = express();
 
-// CORS configuration
-const allowedOrigins = process.env.CLIENT_ORIGIN 
-  ? process.env.CLIENT_ORIGIN.split(',').map(origin => origin.trim())
+/* -------------------- CORS -------------------- */
+const allowedOrigins = process.env.CLIENT_ORIGIN
+  ? process.env.CLIENT_ORIGIN.split(",").map((o) => o.trim())
   : ["http://localhost:5173", "http://localhost:5174"];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
-        callback(null, true);
-      } else {
-        callback(null, true); // Allow all for now - restrict in production
+      if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+        return callback(null, true);
       }
+      return callback(null, true); // allow all for now
     },
     credentials: true,
   })
 );
+
+/* -------------------- MIDDLEWARE -------------------- */
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan("dev"));
 
-app.get("/api/health", (_req, res) => res.json({ ok: true }));
+/* -------------------- HEALTH CHECK -------------------- */
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true });
+});
 
+/* -------------------- ROUTES -------------------- */
 app.use("/api/auth", authRouter);
 app.use("/api/me", meRouter);
 app.use("/api/uploads", uploadsRouter);
 app.use("/api/posts", postsRouter);
 app.use("/api/admin", adminRouter);
 
+/* -------------------- ERROR HANDLER -------------------- */
 app.use(errorHandler);
 
-const port = process.env.PORT ? Number(process.env.PORT) : 5000;
-
+/* -------------------- DATABASE -------------------- */
 await connectDb(process.env.MONGO_URI || "mongodb://localhost:27017/spotmies");
-app.listen(port, () => console.log(`API listening on http://localhost:${port}`));
 
+/* -------------------- EXPORT (IMPORTANT FOR VERCEL) -------------------- */
+export default app;
