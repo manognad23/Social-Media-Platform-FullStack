@@ -15,52 +15,30 @@ dotenv.config();
 
 const app = express();
 
-// CORS configuration
+// CORS
 const allowedOrigins = process.env.CLIENT_ORIGIN
-  ? process.env.CLIENT_ORIGIN.split(",").map((origin) => origin.trim())
-  : ["http://localhost:5173", "http://localhost:5174"];
+  ? process.env.CLIENT_ORIGIN.split(",").map(o => o.trim())
+  : ["http://localhost:5173"];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes("*")) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-  })
-);
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
 
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan("dev"));
 
-// Health check route
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
-// API routes
 app.use("/api/auth", authRouter);
 app.use("/api/me", meRouter);
 app.use("/api/uploads", uploadsRouter);
 app.use("/api/posts", postsRouter);
 app.use("/api/admin", adminRouter);
 
-// Error handling middleware
 app.use(errorHandler);
 
-const port = process.env.PORT ? Number(process.env.PORT) : 5000;
-
-// Connect to MongoDB Atlas
-if (!process.env.MONGO_URI) {
-  console.error("Error: MONGO_URI is not set in environment variables.");
-  process.exit(1);
-}
-
+// ✅ connect DB once
 await connectDb(process.env.MONGO_URI);
 
-app.listen(port, () => {
-  console.log(`API listening on port ${port}`);
-});
+export default app;
