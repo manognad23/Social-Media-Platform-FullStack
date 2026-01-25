@@ -7,7 +7,8 @@ import { FeedPage } from "./pages/Feed";
 import { LoginPage } from "./pages/Login";
 import { RegisterPage } from "./pages/Register";
 import { ProfilePage } from "./pages/Profile";
-import { AdminPage } from "./pages/Admin";
+import { AdminPage } from "./pages/Admin"
+;
 import { AdminLoginPage } from "./pages/AdminLogin";
 
 function AppRoutes() {
