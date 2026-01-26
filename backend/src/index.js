@@ -15,16 +15,25 @@ dotenv.config();
 
 const app = express();
 
-// CORS
-const allowedOrigins = process.env.CLIENT_ORIGIN
-  ? process.env.CLIENT_ORIGIN.split(",").map(o => o.trim())
-  : ["http://localhost:5173"];
+// CORS configuration
+const allowedOrigins = process.env.CLIENT_ORIGIN 
+  ? process.env.CLIENT_ORIGIN.split(',').map(origin => origin.trim())
+  : ["http://localhost:5173", "http://localhost:5174"];
 
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true,
-}));
-
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Allow all for now - restrict in production
+      }
+    },
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan("dev"));
 
@@ -38,7 +47,8 @@ app.use("/api/admin", adminRouter);
 
 app.use(errorHandler);
 
-// ✅ connect DB once
-await connectDb(process.env.MONGO_URI);
+const port = process.env.PORT ? Number(process.env.PORT) : 5000;
 
-export default app;
+await connectDb(process.env.MONGO_URI || "mongodb://localhost:27017/spotmies");
+app.listen(port, () => console.log(`API listening on http://localhost:${port}`));
+
