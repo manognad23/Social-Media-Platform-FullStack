@@ -91,6 +91,70 @@ postsRouter.get(
   })
 );
 
+postsRouter.get(
+  "/user/:userId",
+  asyncHandler(async (req, res) => {
+    const userId = req.params.userId;
+    const posts = await Post.find({ authorId: userId, status: "visible" })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    const postIds = posts.map((p) => p._id);
+    const comments = await Comment.find({ postId: { $in: postIds }, status: "visible" })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const allUserIds = [
+      ...new Set([
+        ...posts.map((p) => p.authorId.toString()),
+        ...comments.map((c) => c.authorId.toString()),
+      ]),
+    ];
+
+    const users = await User.find({ _id: { $in: allUserIds } }).lean();
+    const userMap = new Map(
+      users.map((u) => [
+        u._id.toString(),
+        { id: u._id.toString(), username: u.username, avatarUrl: u.avatarUrl || "" },
+      ])
+    );
+
+    const commentsByPost = new Map();
+    for (const c of comments) {
+      const pid = c.postId.toString();
+      if (!commentsByPost.has(pid)) commentsByPost.set(pid, []);
+      const author = userMap.get(c.authorId.toString());
+      if (author) {
+        commentsByPost.get(pid).push({
+          id: c._id.toString(),
+          text: c.text,
+          createdAt: c.createdAt,
+          author,
+        });
+      }
+    }
+
+    res.json({
+      posts: posts.map((p) => ({
+        id: p._id.toString(),
+        text: p.text,
+        image: p.image?.url ? { url: p.image.url } : null,
+        status: p.status,
+        createdAt: p.createdAt,
+        author:
+          userMap.get(p.authorId.toString()) || {
+            id: p.authorId.toString(),
+            username: "Unknown",
+            avatarUrl: "",
+          },
+        comments: commentsByPost.get(p._id.toString()) || [],
+      })),
+    });
+  })
+);
+
+
 /* ------------------------------------------------------------------ */
 /* CREATE POST                                                        */
 /* ------------------------------------------------------------------ */
