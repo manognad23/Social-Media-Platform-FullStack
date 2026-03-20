@@ -2,6 +2,7 @@ import express from "express";
 import { z } from "zod";
 
 import { asyncHandler } from "../lib/asyncHandler.js";
+import { sendModerationRemovalEmail } from "../lib/mailer.js";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import { Post } from "../models/Post.js";
 import { Comment } from "../models/Comment.js";
@@ -184,6 +185,19 @@ adminRouter.post(
       post.status = desiredStatus;
       await post.save();
 
+      // Send email notification if admin removed this post
+      if (action === "remove") {
+        const author = await User.findById(post.authorId);
+        if (author?.email) {
+          await sendModerationRemovalEmail({
+            to: author.email,
+            username: author.username,
+            targetType: "post",
+            reason: "Your post violated our community guidelines",
+          });
+        }
+      }
+
       await ModerationLog.create({
         targetType: "post",
         targetId: post._id,
@@ -202,6 +216,19 @@ adminRouter.post(
       if (!comment) return res.status(404).json({ error: "Not found" });
       comment.status = desiredStatus;
       await comment.save();
+
+      // Send email notification if admin removed this comment
+      if (action === "remove") {
+        const author = await User.findById(comment.authorId);
+        if (author?.email) {
+          await sendModerationRemovalEmail({
+            to: author.email,
+            username: author.username,
+            targetType: "comment",
+            reason: "Your comment violated our community guidelines",
+          });
+        }
+      }
 
       await ModerationLog.create({
         targetType: "comment",
